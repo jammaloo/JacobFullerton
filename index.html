@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#d9ff43" />
+    <title>Jacob / Live</title>
+  </head>
+  <body>
+    <main>
+      <header>
+        <a class="wordmark" href="/" aria-label="Jacob Live home">JACOB<span>/</span>LIVE<i aria-hidden="true">?</i></a>
+      </header>
+
+      <section class="hero">
+        <div class="intro">
+          <h1>Your face.<br /><em>His skin.</em></h1>
+          <p class="lede">Move. Smile. Blink. Jacob is learning how to wear you.</p>
+          <button id="start" type="button"><span>ALLOW CAMERA</span><b>→</b></button>
+          <p class="privacy">VIDEO NEVER LEAVES YOUR DEVICE</p>
+        </div>
+
+        <div class="stage-wrap">
+          <div class="stage" id="stage">
+            <canvas id="output" width="720" height="720" aria-label="Live fractured face puppet"></canvas>
+            <div class="scanline"></div>
+            <div class="corner tl"></div><div class="corner tr"></div>
+            <div class="corner bl"></div><div class="corner br"></div>
+            <span class="label top">EXPERIMENT SUBJECT: JACOB</span>
+            <span class="label bottom" id="tracking-label">AWAITING INPUT</span>
+          </div>
+        </div>
+      </section>
+
+      <section class="controls" aria-label="Effect controls">
+        <label>FRACTURE <input id="fracture" type="range" min="0" max="12" value="4" step="0.25" /></label>
+        <label>SMOOTHING <input id="smoothing" type="range" min="0.15" max="0.85" value="0.56" step="0.01" /></label>
+        <button id="grid-toggle" type="button" aria-pressed="false">GRID: OFF</button>
+        <button id="fast-toggle" type="button" aria-pressed="false">FAST MODE: OFF</button>
+      </section>
+
+      <video id="webcam" playsinline muted></video>
+      <img id="jacob" src="/jacob.webp" alt="" />
+      <img id="hair" src="/hair.png" alt="" />
+    </main>
+    <script type="module" src="/src/main.js"></script>
+  </body>
+</html>
