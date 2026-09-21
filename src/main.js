@@ -4,7 +4,7 @@ import { Delaunay } from 'd3-delaunay';
 
 const MODEL_URL = 'https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task';
 const WASM_URL = 'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision/wasm';
-const SIZE = 720;
+const SIZE = window.matchMedia('(max-width: 600px)').matches ? 480 : 720;
 const FACE_OVAL = [10, 338, 297, 332, 284, 251, 389, 356, 454, 323, 361, 288, 397, 365, 379, 378, 400, 377, 152, 148, 176, 149, 150, 136, 172, 58, 132, 93, 234, 127, 162, 21, 54, 103, 67, 109];
 const FEATURE_POINTS = new Set([
   ...FACE_OVAL, 1, 2, 4, 5, 6, 9, 13, 14, 17, 33, 37, 39, 40, 46, 52, 53, 55, 61, 63, 65, 66, 70, 78, 80, 81, 82, 84, 87, 88, 91, 95,
@@ -20,6 +20,7 @@ const FAST_POINTS = Array.from(new Set([
 ]));
 
 const canvas = document.querySelector('#output');
+canvas.width = canvas.height = SIZE;
 const ctx = canvas.getContext('2d');
 const video = document.querySelector('#webcam');
 const image = document.querySelector('#jacob');
@@ -257,8 +258,9 @@ async function startCamera() {
   startButton.disabled = true;
   startButton.querySelector('span').textContent = 'CONNECTING…';
   try {
+    if (!navigator.mediaDevices?.getUserMedia) throw new Error('Camera access is not supported in this browser.');
     await initialize();
-    const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user', width: { ideal: 1280 }, height: { ideal: 720 } }, audio: false });
+    const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user', width: { ideal: SIZE }, height: { ideal: SIZE } }, audio: false });
     video.srcObject = stream;
     await video.play();
     await landmarker.setOptions({ runningMode: 'VIDEO' });
@@ -272,7 +274,7 @@ async function startCamera() {
     requestAnimationFrame(track);
   } catch (error) {
     console.error(error);
-    trackingLabel.textContent = error.name === 'NotAllowedError' ? 'CAMERA ACCESS DENIED' : 'SYSTEM ERROR';
+    trackingLabel.textContent = error.name === 'NotAllowedError' ? 'CAMERA ACCESS DENIED' : 'CAMERA UNAVAILABLE';
     startButton.disabled = false;
     startButton.querySelector('span').textContent = 'TRY AGAIN';
   }

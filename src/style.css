@@ -34,5 +34,31 @@ canvas { display: block; width: 100%; height: 100%; }
 .controls input { accent-color: #171715; width: 120px; }
 .controls button { border: 1px solid #171715; background: transparent; padding: 8px 11px; font: inherit; cursor: pointer; }
 #webcam, #jacob, #hair { display: none; }
-@media (max-width: 850px) { main { width: min(100% - 28px, 680px); } .hero { grid-template-columns: 1fr; gap: 46px; padding: 50px 0; } .stage-wrap { justify-self: center; } h1 { font-size: clamp(68px, 20vw, 110px); } .controls { flex-wrap: wrap; } }
-@media (max-width: 480px) { header p { display: none; } .hero { padding-top: 38px; } .stage { box-shadow: 10px 10px 0 #d9ff43; } .controls { gap: 18px; } }
+@media (max-width: 850px) {
+  main { width: min(100% - 28px, 680px); padding-top: max(18px, env(safe-area-inset-top)); padding-bottom: max(26px, env(safe-area-inset-bottom)); }
+  header { height: 48px; }
+  .hero { grid-template-columns: 1fr; gap: 46px; min-height: 0; padding: 44px 0 52px; }
+  .stage-wrap { justify-self: center; }
+  h1 { font-size: clamp(68px, 20vw, 110px); }
+  .controls { flex-wrap: wrap; }
+}
+@media (max-width: 480px) {
+  body { background: #f0efe9; }
+  main { width: calc(100% - 24px); }
+  .hero { gap: 38px; padding: 30px 0 42px; }
+  h1 { font-size: clamp(58px, 19vw, 86px); }
+  .lede { margin: 28px 0 24px; font-size: 15px; }
+  #start { width: 100%; min-height: 56px; }
+  .stage-wrap { width: calc(100% - 8px); }
+  .stage { box-shadow: 8px 8px 0 #d9ff43; }
+  .label { font-size: 8px; max-width: calc(100% - 72px); text-align: center; }
+  .corner { width: 18px; height: 18px; }
+  .controls { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; padding-top: 16px; }
+  .controls label { grid-column: 1 / -1; justify-content: space-between; min-height: 38px; }
+  .controls input { flex: 1; width: auto; min-width: 0; }
+  .controls button { min-height: 44px; padding: 8px 6px; }
+}
+@media (hover: none) {
+  .wordmark i { width: .7em; }
+  #start:hover { transform: none; box-shadow: 5px 5px 0 #171715; }
+}
