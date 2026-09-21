@@ -6,6 +6,11 @@ const MODEL_URL = 'https://storage.googleapis.com/mediapipe-models/face_landmark
 const WASM_URL = 'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision/wasm';
 const SIZE = window.matchMedia('(max-width: 600px)').matches ? 480 : 720;
 const FACE_OVAL = [10, 338, 297, 332, 284, 251, 389, 356, 454, 323, 361, 288, 397, 365, 379, 378, 400, 377, 152, 148, 176, 149, 150, 136, 172, 58, 132, 93, 234, 127, 162, 21, 54, 103, 67, 109];
+const FEATURE_REGIONS = [
+  [33, 7, 163, 144, 145, 153, 154, 155, 133, 173, 157, 158, 159, 160, 161, 246],
+  [263, 249, 390, 373, 374, 380, 381, 382, 362, 398, 384, 385, 386, 387, 388, 466],
+  [61, 146, 91, 181, 84, 17, 314, 405, 321, 375, 291, 409, 270, 269, 267, 0, 37, 39, 40, 185]
+];
 const FEATURE_POINTS = new Set([
   ...FACE_OVAL, 1, 2, 4, 5, 6, 9, 13, 14, 17, 33, 37, 39, 40, 46, 52, 53, 55, 61, 63, 65, 66, 70, 78, 80, 81, 82, 84, 87, 88, 91, 95,
   105, 107, 133, 144, 145, 153, 154, 155, 157, 158, 159, 160, 161, 163, 173, 178, 181, 185, 191, 246, 249, 263, 267, 269, 270, 276,
@@ -34,6 +39,9 @@ const fastToggle = document.querySelector('#fast-toggle');
 const warpCanvas = document.createElement('canvas');
 warpCanvas.width = warpCanvas.height = SIZE;
 const warpCtx = warpCanvas.getContext('2d');
+const liveCanvas = document.createElement('canvas');
+liveCanvas.width = liveCanvas.height = SIZE;
+const liveCtx = liveCanvas.getContext('2d');
 const hairCanvas = document.createElement('canvas');
 hairCanvas.width = hairCanvas.height = SIZE;
 const hairCtx = hairCanvas.getContext('2d', { willReadFrequently: true });
@@ -101,12 +109,7 @@ function headPose(points) {
   const top = points[10];
   const dx = right[0] - left[0];
   const dy = right[1] - left[1];
-  return {
-    x: (left[0] + right[0]) / 2,
-    y: top[1],
-    width: Math.hypot(dx, dy),
-    angle: Math.atan2(dy, dx)
-  };
+  return { x: (left[0] + right[0]) / 2, y: top[1], width: Math.hypot(dx, dy), angle: Math.atan2(dy, dx) };
 }
 
 function prepareHair() {
@@ -115,18 +118,14 @@ function prepareHair() {
   hairCtx.drawImage(hairImage, fit.dx, fit.dy, hairImage.naturalWidth * fit.scale, hairImage.naturalHeight * fit.scale);
   const pixels = hairCtx.getImageData(0, 0, SIZE, SIZE);
   for (let i = 0; i < pixels.data.length; i += 4) {
-    const red = pixels.data[i];
-    const green = pixels.data[i + 1];
-    const blue = pixels.data[i + 2];
-    const cyanDistance = Math.hypot(red - 7, green - 158, blue - 187);
-    pixels.data[i + 3] = Math.max(0, Math.min(255, (cyanDistance - 18) * 12));
+    const distance = Math.hypot(pixels.data[i] - 7, pixels.data[i + 1] - 158, pixels.data[i + 2] - 187);
+    pixels.data[i + 3] = Math.max(0, Math.min(255, (distance - 18) * 12));
   }
   hairCtx.clearRect(0, 0, SIZE, SIZE);
   hairCtx.putImageData(pixels, 0, 0);
 }
 
 function drawHair(targetPoints) {
-  if (!sourceHeadPose) return;
   const target = headPose(targetPoints);
   const scale = target.width / sourceHeadPose.width;
   const mirrored = Math.cos(target.angle) * Math.cos(sourceHeadPose.angle) < 0;
@@ -137,6 +136,36 @@ function drawHair(targetPoints) {
   ctx.translate(-sourceHeadPose.x, -sourceHeadPose.y);
   ctx.drawImage(hairCanvas, 0, 0);
   ctx.restore();
+}
+
+function featurePath(points) {
+  const path = new Path2D();
+  FEATURE_REGIONS.forEach((region, regionIndex) => {
+    const center = region.reduce((sum, index) => {
+      sum[0] += points[index][0] / region.length;
+      sum[1] += points[index][1] / region.length;
+      return sum;
+    }, [0, 0]);
+    const scale = regionIndex < 2 ? 1.18 : 1.08;
+    region.forEach((index, position) => {
+      const source = points[index];
+      const point = [center[0] + (source[0] - center[0]) * scale, center[1] + (source[1] - center[1]) * scale];
+      if (position === 0) path.moveTo(point[0], point[1]);
+      else path.lineTo(point[0], point[1]);
+    });
+    path.closePath();
+  });
+  return path;
+}
+
+function updateLiveCanvas() {
+  const videoFit = coverTransform(video.videoWidth, video.videoHeight);
+  liveCtx.clearRect(0, 0, SIZE, SIZE);
+  liveCtx.save();
+  liveCtx.translate(SIZE, 0);
+  liveCtx.scale(-1, 1);
+  liveCtx.drawImage(video, videoFit.dx, videoFit.dy, video.videoWidth * videoFit.scale, video.videoHeight * videoFit.scale);
+  liveCtx.restore();
 }
 
 function drawWarp(targetPoints) {
@@ -170,11 +199,18 @@ function hash(index) {
 }
 
 function render(targetPoints, time) {
+  if (!active || !targetPoints || video.readyState < 2) {
+    const sourceFit = coverTransform(image.naturalWidth, image.naturalHeight);
+    ctx.clearRect(0, 0, SIZE, SIZE);
+    ctx.drawImage(image, sourceFit.dx, sourceFit.dy, image.naturalWidth * sourceFit.scale, image.naturalHeight * sourceFit.scale);
+    return;
+  }
+
+  updateLiveCanvas();
   drawWarp(targetPoints);
   ctx.fillStyle = '#079db8';
   ctx.fillRect(0, 0, SIZE, SIZE);
   drawHair(targetPoints);
-
   const sites = selectedPoints.map((index) => targetPoints[index]);
   const voronoi = Delaunay.from(sites).voronoi([0, 0, SIZE, SIZE]);
   const facePath = pathFrom(targetPoints, FACE_OVAL);
@@ -205,6 +241,11 @@ function render(targetPoints, time) {
       ctx.restore();
     }
   });
+  ctx.restore();
+
+  ctx.save();
+  ctx.clip(featurePath(targetPoints));
+  ctx.drawImage(liveCanvas, 0, 0);
   ctx.restore();
 }
 
@@ -250,7 +291,7 @@ async function initializeModel() {
   sourceHeadPose = headPose(sourcePoints);
   prepareHair();
   rebuildMesh();
-  render(sourcePoints, 0);
+  render(null, 0);
   trackingLabel.textContent = 'HIS BODY IS READY';
 }
 
@@ -338,12 +379,12 @@ gridToggle.addEventListener('click', () => {
   gridVisible = !gridVisible;
   gridToggle.textContent = `GRID: ${gridVisible ? 'ON' : 'OFF'}`;
   gridToggle.setAttribute('aria-pressed', String(gridVisible));
-  if (!active && sourcePoints) render(sourcePoints, 0);
+  if (sourcePoints) render(active ? smoothPoints : null, 0);
 });
 fastToggle.addEventListener('click', () => {
   benchmarkComplete = true;
   setFastMode(fastToggle.getAttribute('aria-pressed') !== 'true');
-  if (sourcePoints) render(smoothPoints || sourcePoints, 0);
+  if (sourcePoints) render(active ? smoothPoints : null, 0);
 });
 
 function initializeWhenAssetsReady() {
